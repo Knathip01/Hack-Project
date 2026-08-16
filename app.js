@@ -1,4 +1,4 @@
-﻿/* ===================================================================
+/* ===================================================================
    Photharam Beetle Shop — Security Audit Frontend
    Displays results from /api/scan, grouped by the 4 security layers
    the shop implements.
@@ -39,7 +39,7 @@ const CATEGORIES = [
   },
   {
     id: 'auth',
-    label: '🔐 Authentication',
+    label: '🔐 Authentication & Auth Gates',
     icon: '🔐',
     color: '#4d9fff',
     checkIds: [
@@ -47,6 +47,7 @@ const CATEGORIES = [
       'cookies',
       'admin-login-separation',
       'admin-path-exposure',
+      'admin-auth-',        // prefix match for all admin route checks
     ],
   },
   {
@@ -192,7 +193,11 @@ function renderResults(report) {
 
   CATEGORIES.filter((c) => c.id !== 'all' && c.id !== 'input').forEach((cat) => {
     checks.forEach((ch) => {
-      if (cat.checkIds && cat.checkIds.some((id) => ch.id && ch.id.startsWith(id.replace('exposure-', 'exposure-')))) {
+      if (cat.checkIds && cat.checkIds.some((id) => {
+        // Support prefix matching (id ends with '-')
+        if (id.endsWith('-')) return ch.id && ch.id.startsWith(id);
+        return ch.id && ch.id.startsWith(id.replace('exposure-', 'exposure-'));
+      })) {
         if (!assigned.has(ch.id)) {
           catMap[cat.id].push(ch);
           assigned.add(ch.id);

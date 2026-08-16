@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Photharam Beetle Shop — Security Audit API
  * Checks HTTP headers, CORS, cookies, sensitive paths, admin separation.
  * Non-invasive: no exploit payloads, no brute-force, no body reads.
@@ -329,6 +329,75 @@ async function checkAdminPathExposure(target, adminPath) {
   }
 }
 
+// 16. Admin route authorization gate check
+// Sends plain unauthenticated requests and checks the server blocks them correctly.
+// Expected: 401 Unauthorized | 403 Forbidden | 3xx redirect to login
+// Fail:     200 OK — page served without authentication
+async function checkAdminRouteAuth(target, routePath) {
+  const label = routePath;
+  const id    = `admin-auth-${routePath.replace(/\//g, '').replace(/[^a-z0-9-]/gi, '-')}`;
+  try {
+    const probeUrl = new URL(routePath, target);
+    // No cookies, no Authorization header — pure unauthenticated probe
+    const r = await safeFetch(probeUrl, {
+      method: 'GET',
+      extraHeaders: {
+        // Mimic a normal browser with no session
+        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+        'Cache-Control': 'no-cache',
+      },
+    });
+
+    const loc      = hdr(r.headers, 'location');
+    const isBlock  = r.status === 401 || r.status === 403;
+    const isRedir  = r.status >= 301 && r.status <= 308;
+    const redirOk  = isRedir && (loc.includes('/login') || loc.includes('/signin') || loc.includes('/auth'));
+    const exposed  = r.status >= 200 && r.status < 300;
+
+    // Determine status
+    let status, detail, advice;
+    if (isBlock) {
+      status = 'pass';
+      detail = `HTTP ${r.status} — เซิร์ฟเวอร์บล็อก request ที่ไม่มี session ✅`;
+      advice = '';
+    } else if (redirOk) {
+      status = 'pass';
+      detail = `HTTP ${r.status} → ${loc} — redirect ไปหน้า login ถูกต้อง ✅`;
+      advice = '';
+    } else if (isRedir && !redirOk) {
+      status = 'warn';
+      detail = `HTTP ${r.status} → ${loc || '(ไม่มี Location)'} — redirect ไม่ใช่หน้า login`;
+      advice = 'ตรวจสอบว่า middleware redirect ไปยัง /login หรือ /admin/login เมื่อไม่มี session';
+    } else if (exposed) {
+      status = 'fail';
+      detail = `HTTP ${r.status} — หน้านี้เปิดให้เข้าถึงได้โดยไม่ต้องล็อกอิน! 🚨`;
+      advice = 'เพิ่ม middleware ตรวจ session/JWT ก่อนเข้า route นี้ด่วน!';
+    } else {
+      status = 'info';
+      detail = `HTTP ${r.status}${loc ? ' → ' + loc : ''}`;
+      advice = '';
+    }
+
+    return { id, title: `Auth Gate: ${label}`, status, detail, advice };
+  } catch (e) {
+    return { id, title: `Auth Gate: ${label}`, status: 'info',
+      detail: `ตรวจสอบไม่ได้ภายในเวลาที่กำหนด (${e.message || 'timeout'})`, advice: '' };
+  }
+}
+
+// Run all admin route auth checks in parallel
+async function checkAllAdminRoutes(target) {
+  const PROTECTED_ROUTES = [
+    '/admin/users',
+    '/admin/orders',
+    '/admin/products',
+    '/admin/dashboard',
+    '/api/admin/users',
+    '/api/admin/orders',
+  ];
+  return Promise.all(PROTECTED_ROUTES.map((r) => checkAdminRouteAuth(target, r)));
+}
+
 // ── Score ──────────────────────────────────────────────────────────────
 
 function computeScore(checks) {
@@ -357,14 +426,15 @@ module.exports = async function handler(req, res) {
   const { target, authorized, adminPath } = req.body || {};
   if (authorized !== true) return res.status(400).json({ error: 'ต้องยืนยันสิทธิ์ทดสอบก่อน' });
 
+
   let url;
   try { url = await assertAuthorizedTarget(target, allowedHosts); }
   catch (err) { return res.status(400).json({ error: err.message }); }
 
   try {
-    // Run header checks and active checks in parallel
+    // Run all checks in parallel for speed
     const [mainResp, httpRedirect, cors, pathEnv, pathGit, pathVercel, securityTxt,
-           adminSep, adminExposure] = await Promise.all([
+           adminSep, adminExposure, adminRouteChecks] = await Promise.all([
       safeFetch(url),
       checkHttpRedirect(url),
       checkCors(url),
@@ -374,6 +444,7 @@ module.exports = async function handler(req, res) {
       checkSecurityTxt(url),
       checkAdminSeparation(url, adminPath || ''),
       checkAdminPathExposure(url, adminPath || ''),
+      checkAllAdminRoutes(url),
     ]);
 
     const { headers, status, url: finalUrl } = mainResp;
@@ -396,6 +467,8 @@ module.exports = async function handler(req, res) {
       securityTxt,
       adminSep,
       adminExposure,
+      // Admin route auth gate results (spread array)
+      ...adminRouteChecks,
     ].filter(Boolean);
 
     const checks = [...headerChecks, ...activeChecks];
