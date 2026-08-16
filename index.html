@@ -1,0 +1,245 @@
+﻿<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="เครื่องมือตรวจสอบความปลอดภัยเชิงลึกสำหรับ Photharam Beetle Shop" />
+    <title>Shield Photharam - Security Audit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg:#07101d; --surface:#0c1928; --surface2:#101f32;
+        --border:#1c3050; --border2:#243d60;
+        --text:#ddeeff; --muted:#7a9bbf; --faint:#3d5a7a;
+        --blue:#4d9fff; --green:#3dd68c; --amber:#f0b429; --red:#f06060; --purple:#9b7fe8;
+        --font:'IBM Plex Sans Thai',ui-sans-serif,system-ui,sans-serif;
+        --mono:'IBM Plex Mono',ui-monospace,monospace;
+        --r:14px; --rs:8px;
+      }
+      *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+      html{scroll-behavior:smooth}
+      body{font-family:var(--font);font-size:15px;line-height:1.6;color:var(--text);background:var(--bg);min-height:100vh;
+        background-image:radial-gradient(ellipse 60% 40% at 10% -10%,#0a2a5020,transparent 60%),
+          radial-gradient(ellipse 50% 50% at 90% 110%,#0a1e3820,transparent 60%);}
+      .page{width:min(1100px,calc(100% - 32px));margin:0 auto;padding:52px 0 80px}
+      /* Header */
+      .header{display:flex;align-items:flex-start;gap:20px;margin-bottom:40px}
+      .shield-icon{flex-shrink:0;width:56px;height:56px;background:linear-gradient(135deg,#1a3a62,#0d2244);
+        border:1px solid var(--border2);border-radius:16px;display:grid;place-items:center;font-size:26px;
+        box-shadow:0 4px 20px #00000060,inset 0 1px 0 #ffffff10}
+      .eyebrow{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+      h1{font-size:clamp(1.6rem,4vw,2.8rem);font-weight:700;letter-spacing:-.03em;line-height:1.1;color:#ecf5ff}
+      .lead{margin-top:8px;color:var(--muted);font-size:.95rem;max-width:640px}
+      /* Card */
+      .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+        box-shadow:0 16px 48px #00000050,inset 0 1px 0 #ffffff08}
+      .card-body{padding:clamp(20px,4vw,32px)}
+      /* Form */
+      .form-card{margin-bottom:24px}
+      fieldset{border:none}
+      legend{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:20px}
+      .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+      @media(max-width:620px){.form-grid{grid-template-columns:1fr}}
+      .field{display:flex;flex-direction:column;gap:6px}
+      .field.wide{grid-column:1/-1}
+      .field label{font-size:.82rem;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+      input[type=url],input[type=password],input[type=text]{
+        width:100%;padding:11px 14px;background:#070f1b;border:1px solid var(--border2);
+        border-radius:var(--rs);color:var(--text);font-family:var(--mono);font-size:.88rem;
+        transition:border-color .18s,box-shadow .18s}
+      input:focus-visible{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px #4d9fff22}
+      input::placeholder{color:var(--faint)}
+      .consent{display:flex;align-items:flex-start;gap:10px;padding:14px 16px;
+        background:#0a1625;border:1px solid var(--border);border-radius:var(--rs);font-size:.88rem;color:var(--muted);margin-top:16px}
+      .consent input[type=checkbox]{width:17px;height:17px;flex-shrink:0;margin-top:2px;accent-color:var(--blue);cursor:pointer}
+      .form-actions{display:flex;gap:12px;margin-top:20px;justify-content:flex-end}
+      .btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border:0;border-radius:var(--rs);
+        font:650 .92rem/1 var(--font);cursor:pointer;transition:opacity .16s,transform .14s,box-shadow .16s;white-space:nowrap}
+      .btn:disabled{opacity:.45;cursor:progress;transform:none!important}
+      .btn-primary{background:var(--blue);color:#040e1d;box-shadow:0 4px 16px #4d9fff40}
+      .btn-primary:not(:disabled):hover{opacity:.88;transform:translateY(-1px);box-shadow:0 6px 24px #4d9fff50}
+      .btn-secondary{background:transparent;color:var(--muted);border:1px solid var(--border2)}
+      .btn-secondary:not(:disabled):hover{color:var(--text);border-color:var(--faint)}
+      /* Status Banner */
+      #status-banner{display:none;align-items:center;gap:10px;margin-bottom:18px;
+        padding:12px 16px;border-radius:var(--rs);font-size:.88rem;border:1px solid}
+      #status-banner.info{background:#4d9fff12;border-color:#4d9fff30;color:var(--blue)}
+      #status-banner.error{background:#f0606012;border-color:#f0606030;color:var(--red)}
+      #status-banner.success{background:#3dd68c12;border-color:#3dd68c30;color:var(--green)}
+      /* Progress */
+      #progress-area{margin-bottom:24px;display:none}
+      .progress-header{display:flex;justify-content:space-between;margin-bottom:10px;font-size:.84rem;color:var(--muted)}
+      .progress-bar-track{height:5px;background:var(--surface2);border-radius:99px;overflow:hidden}
+      .progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--green));
+        border-radius:99px;width:0%;transition:width .4s cubic-bezier(.4,0,.2,1)}
+      .progress-steps{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+      .step-pill{font-family:var(--mono);font-size:.74rem;padding:3px 10px;border-radius:99px;
+        border:1px solid var(--border);color:var(--faint);transition:all .2s}
+      .step-pill.active{border-color:var(--blue);color:var(--blue);background:#4d9fff18}
+      .step-pill.done{border-color:var(--green);color:var(--green);background:#3dd68c18}
+      /* Results */
+      #results-area{display:none}
+      .results-header{display:flex;gap:24px;align-items:center;padding:28px 32px;border-bottom:1px solid var(--border)}
+      @media(max-width:560px){.results-header{flex-direction:column;padding:20px}}
+      .score-ring-wrap{position:relative;flex-shrink:0}
+      .score-ring{width:96px;height:96px}
+      .score-ring circle{fill:none;stroke-width:7;stroke-linecap:round}
+      .ring-track{stroke:var(--border2)}
+      .ring-fill{stroke:var(--green);stroke-dasharray:251.2;stroke-dashoffset:251.2;
+        transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1),stroke .4s}
+      .score-label{position:absolute;inset:0;display:grid;place-items:center;
+        font-family:var(--mono);font-size:1.3rem;font-weight:600;color:var(--text)}
+      .results-meta{flex:1;min-width:0}
+      .results-meta h2{font-size:1.15rem;font-weight:700;margin-bottom:6px}
+      .meta-line{font-size:.82rem;color:var(--muted);font-family:var(--mono);overflow-wrap:anywhere}
+      .verdict{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:5px 12px;
+        border-radius:99px;font-size:.8rem;font-weight:600;border:1px solid}
+      /* Category Tabs */
+      .cat-tabs{display:flex;gap:4px;padding:14px 20px;border-bottom:1px solid var(--border);
+        overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+      .cat-tab{flex-shrink:0;display:flex;align-items:center;gap:7px;padding:7px 14px;
+        border-radius:var(--rs);border:1px solid transparent;background:transparent;
+        color:var(--muted);font:550 .82rem var(--font);cursor:pointer;transition:all .18s;white-space:nowrap}
+      .cat-tab:hover{color:var(--text);background:var(--surface2)}
+      .cat-tab.active{color:var(--text);background:var(--surface2);border-color:var(--border2)}
+      .cat-dot{width:8px;height:8px;border-radius:50%}
+      .cat-count{font-family:var(--mono);font-size:.7rem;padding:1px 6px;border-radius:99px;
+        background:var(--surface);border:1px solid var(--border)}
+      /* Check cards */
+      .checks-panel{padding:18px 22px}
+      .check-group{display:none;flex-direction:column;gap:10px}
+      .check-group.visible{display:flex}
+      .check-item{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;
+        background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);
+        transition:border-color .18s,box-shadow .18s}
+      .check-item:hover{border-color:var(--border2);box-shadow:0 4px 16px #00000030}
+      .check-item.pass{border-left:3px solid var(--green)}
+      .check-item.warn{border-left:3px solid var(--amber)}
+      .check-item.fail{border-left:3px solid var(--red)}
+      .check-item.info{border-left:3px solid var(--blue)}
+      .check-icon{flex-shrink:0;width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-size:14px}
+      .pass .check-icon{background:#3dd68c18}
+      .warn .check-icon{background:#f0b42918}
+      .fail .check-icon{background:#f0606018}
+      .info .check-icon{background:#4d9fff18}
+      .check-body{flex:1;min-width:0}
+      .check-title{font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:2px}
+      .check-detail{font-size:.8rem;color:var(--muted);font-family:var(--mono);overflow-wrap:anywhere;white-space:pre-wrap}
+      .check-advice{margin-top:7px;padding:7px 10px;background:#f0b42912;border:1px solid #f0b42930;
+        border-radius:5px;font-size:.78rem;color:#f0c860}
+      .check-advice::before{content:"💡 "}
+      .check-badge{flex-shrink:0;font-family:var(--mono);font-size:.68rem;font-weight:600;padding:2px 8px;
+        border-radius:99px;text-transform:uppercase;letter-spacing:.06em;align-self:flex-start;margin-top:1px;border:1px solid}
+      .pass .check-badge{background:#3dd68c22;color:var(--green);border-color:#3dd68c40}
+      .warn .check-badge{background:#f0b42922;color:var(--amber);border-color:#f0b42940}
+      .fail .check-badge{background:#f0606022;color:var(--red);border-color:#f0606040}
+      .info .check-badge{background:#4d9fff22;color:var(--blue);border-color:#4d9fff40}
+      /* Stat Bar */
+      .stat-bar{display:flex;gap:20px;flex-wrap:wrap;padding:14px 22px;border-top:1px solid var(--border);font-size:.8rem}
+      .stat{display:flex;align-items:center;gap:7px;color:var(--muted)}
+      .stat-dot{width:8px;height:8px;border-radius:50%}
+      /* Footnote */
+      .footnote{margin-top:22px;padding:14px 18px;background:#070f1b;border:1px solid var(--border);
+        border-radius:var(--rs);font-size:.78rem;color:var(--faint);line-height:1.7}
+      .footnote strong{color:var(--muted)}
+      @keyframes spin{to{transform:rotate(360deg)}}
+      .spinner{display:inline-block;width:13px;height:13px;border:2px solid currentColor;
+        border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+      @media(max-width:560px){.form-actions{flex-direction:column}.btn{justify-content:center}}
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <div class="shield-icon" aria-hidden="true">🛡️</div>
+        <div class="header-text">
+          <p class="eyebrow">Authorized Security Audit · Photharam Beetle Shop</p>
+          <h1>Security Audit Dashboard</h1>
+          <p class="lead">ตรวจสอบความปลอดภัย 4 ระดับ — HTTP Headers, Authentication, Input Validation, Sensitive Paths<br>ไม่มีการ exploit จริง ใช้เพื่อยืนยันว่าระบบป้องกันทำงานครบถ้วน</p>
+        </div>
+      </header>
+
+      <div id="status-banner" role="status" aria-live="polite"></div>
+
+      <section class="card form-card" aria-label="แบบฟอร์มตรวจสอบ">
+        <div class="card-body">
+          <form id="scan-form" novalidate>
+            <fieldset>
+              <legend>⚙️ ตั้งค่าการตรวจสอบ</legend>
+              <div class="form-grid">
+                <div class="field wide">
+                  <label for="target">URL เป้าหมาย (Root HTTPS)</label>
+                  <input id="target" name="target" type="url" inputmode="url" autocomplete="url"
+                    placeholder="https://photharam-beetle-2027.vercel.app" required />
+                </div>
+                <div class="field">
+                  <label for="audit-token">Audit Token</label>
+                  <input id="audit-token" name="audit-token" type="password" autocomplete="off"
+                    placeholder="ค่า AUDIT_TOKEN บน Vercel" required />
+                </div>
+                <div class="field">
+                  <label for="admin-path">Admin Login Path (optional)</label>
+                  <input id="admin-path" name="admin-path" type="text" autocomplete="off"
+                    placeholder="/admin/login" />
+                </div>
+              </div>
+              <div class="consent">
+                <input id="authorized" type="checkbox" required />
+                <label for="authorized" style="text-transform:none;letter-spacing:0;font-size:.88rem;color:var(--muted);cursor:pointer;">
+                  ฉันยืนยันว่าเป็นเจ้าของหรือได้รับอนุญาตให้ทดสอบเว็บไซต์นี้ และผลลัพธ์จะใช้เพื่อปรับปรุงความปลอดภัยเท่านั้น
+                </label>
+              </div>
+              <div class="form-actions">
+                <button type="button" id="reset-btn" class="btn btn-secondary">↺ ล้างผล</button>
+                <button type="submit" id="scan-btn" class="btn btn-primary">🔍 เริ่มตรวจสอบ</button>
+              </div>
+            </fieldset>
+          </form>
+        </div>
+      </section>
+
+      <div id="progress-area" class="card" style="margin-bottom:24px">
+        <div class="card-body">
+          <div class="progress-header">
+            <span id="progress-label">กำลังตรวจสอบ…</span>
+            <span id="progress-pct">0%</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+          </div>
+          <div class="progress-steps" id="progress-steps"></div>
+        </div>
+      </div>
+
+      <div id="results-area" class="card">
+        <div class="results-header">
+          <div class="score-ring-wrap" aria-label="คะแนนความปลอดภัย">
+            <svg class="score-ring" viewBox="0 0 96 96" aria-hidden="true">
+              <circle class="ring-track" cx="48" cy="48" r="40" />
+              <circle class="ring-fill" id="ring-fill" cx="48" cy="48" r="40" />
+            </svg>
+            <div class="score-label" id="score-label">-</div>
+          </div>
+          <div class="results-meta">
+            <h2>ผลตรวจสอบ Photharam Beetle Shop</h2>
+            <div class="meta-line" id="meta-url">-</div>
+            <div class="meta-line" id="meta-http">-</div>
+            <div id="verdict-badge" class="verdict" style="display:none"></div>
+          </div>
+        </div>
+        <div class="cat-tabs" id="cat-tabs" role="tablist" aria-label="หมวดหมู่การตรวจสอบ"></div>
+        <div class="checks-panel" id="checks-panel"></div>
+        <div class="stat-bar" id="stat-bar"></div>
+      </div>
+
+      <p class="footnote">
+        <strong>⚠️ ขอบเขต:</strong> ตรวจสอบเฉพาะ response headers, HTTP redirects, CORS behavior, cookie attributes, sensitive path exposure
+        โดยใช้ HEAD/GET requests เท่านั้น — ไม่มีการส่ง payload อันตราย, ไม่อ่าน response body, ไม่ bypass login, ไม่สแกนพอร์ต
+        API ทำงานได้เฉพาะโดเมนใน <code>AUDIT_ALLOWED_HOSTS</code>
+      </p>
+    </div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

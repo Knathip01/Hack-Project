@@ -1,0 +1,12 @@
+{
+  "name": "vercel-security-baseline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A non-invasive security-header baseline checker for authorized websites.",
+  "scripts": {
+    "check": "node --check api/scan.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
