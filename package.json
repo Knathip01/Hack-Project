@@ -4,6 +4,8 @@
   "private": true,
   "description": "A non-invasive security-header baseline checker for authorized websites.",
   "scripts": {
+    "test": "node run-tests.js",
+    "test:security": "node run-tests.js",
     "check": "node --check api/scan.js"
   },
   "engines": {
